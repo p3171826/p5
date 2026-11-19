@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Chaveiro">
+<meta name="theme-color" content="#f4f5f7">
+<title>Chaveiro</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%91%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#f4f5f7;--card:#fff;--tx:#1b1f24;--mut:#6b7280;--bd:#e5e7eb;
+  --pri:#1f5fbf;--ok:#15803d;--ok-bg:#dcfce7;--warn:#b45309;--warn-bg:#fef3c7;
+  --bad:#b91c1c;--bad-bg:#fee2e2;--gray-bg:#e9ebef;--tag:#fff7d6;--tag-bd:#e0c45c;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#111418;--card:#1b1f25;--tx:#e8eaed;--mut:#9aa1ab;--bd:#2c323a;
+    --pri:#3b7be0;--ok:#4ade80;--ok-bg:#14301f;--warn:#fbbf24;--warn-bg:#3a2a0b;
+    --bad:#f87171;--bad-bg:#3b1515;--gray-bg:#262b33;--tag:#3a3215;--tag-bd:#8a7430;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);-webkit-text-size-adjust:100%;min-height:100svh}
+body.lock{overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+[hidden]{display:none!important}
+.login{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;padding-top:env(safe-area-inset-top);min-height:100svh}
+.login-box{width:100%;max-width:340px;text-align:center}
+.login-box .ico{font-size:52px}
+.login-box h2{margin:8px 0 4px;font-size:24px}
+.login-box p{color:var(--mut);margin:0 0 20px;font-size:15px}
+.login-box input{width:100%;padding:14px;border:1px solid var(--bd);border-radius:12px;font-size:22px;text-align:center;letter-spacing:.25em;background:var(--card);color:var(--tx);-webkit-appearance:none;appearance:none}
+.login-box .btn{width:100%;margin-top:12px;min-height:50px}
+.login-erro{color:var(--bad);font-size:14px;min-height:20px;margin-top:10px}
+.login-box.abana{animation:abana .35s}
+@keyframes abana{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+#mapa{height:calc(100svh - 210px);min-height:320px;border-radius:14px;border:1px solid var(--bd);z-index:0}
+.mini-map{height:230px;border-radius:12px;border:1px solid var(--bd);z-index:0;margin-top:4px}
+.leaflet-popup-content{font-size:14px}
+.leaflet-popup-content .btn{color:#fff}
+
+.top{position:sticky;top:0;z-index:10;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) 16px 8px;border-bottom:1px solid var(--bd)}
+.top-in{max-width:760px;margin:0 auto}
+.bar{display:flex;align-items:center;gap:6px}
+h1{font-size:22px;margin:0;flex:1}
+.seg{display:flex;background:var(--gray-bg);border-radius:10px;padding:3px;margin-top:10px}
+.seg button{flex:1;border:0;background:transparent;color:var(--tx);padding:8px;border-radius:8px;font-size:15px;font-weight:600}
+.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#q{width:100%;margin-top:10px;padding:11px 14px;border:1px solid var(--bd);border-radius:12px;font-size:16px;background:var(--card);color:var(--tx);-webkit-appearance:none;appearance:none}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips:empty{display:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 12px;border-radius:999px;font-size:14px}
+.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+
+main{padding:12px 16px calc(env(safe-area-inset-bottom) + 24px);max-width:760px;margin:0 auto}
+.lista{display:flex;flex-direction:column;gap:10px}
+.grupo{font-size:13px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin:14px 2px 0}
+.card{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px;color:inherit;font:inherit}
+.thumb{width:64px;height:64px;border-radius:10px;background:var(--gray-bg);flex:none;overflow:hidden;display:grid;place-items:center;font-size:26px}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.info{flex:1;min-width:0}
+.nome{font-weight:700}
+.desc,.meta,.nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:13px;color:var(--mut)}
+.meta.warn{color:var(--warn)}
+.etq{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;background:var(--tag);border:1px solid var(--tag-bd);border-radius:6px;padding:1px 7px;font-size:14px;letter-spacing:.03em}
+.etq.big{font-size:26px;padding:6px 14px;border-radius:10px;border-width:2px}
+.badge{flex:none;font-size:12px;font-weight:600;padding:4px 8px;border-radius:999px}
+.b-disponivel{background:var(--ok-bg);color:var(--ok)}
+.b-emprestada{background:var(--warn-bg);color:var(--warn)}
+.b-atraso,.b-perdida{background:var(--bad-bg);color:var(--bad)}
+.b-inativa{background:var(--gray-bg);color:var(--mut)}
+.vazio{text-align:center;color:var(--mut);padding:40px 10px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 14px;border-radius:10px;font-size:16px;font-weight:600;min-height:44px;text-decoration:none}
+.btn.primary{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.ghost{background:transparent}
+.btn.sm{min-height:36px;padding:6px 10px;font-size:14px}
+.btn:disabled{opacity:.55}
+.icon{border:0;background:transparent;font-size:20px;color:var(--tx);width:44px;height:44px;border-radius:10px;flex:none}
+
+/* Folhas */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
+.ov.show{opacity:1}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:92dvh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;transform:translateY(30px);transition:transform .2s;overflow:hidden}
+.ov.show .sheet{transform:none}
+.sheet.full{height:92dvh}
+.sheet.small{max-width:440px}
+@media (min-width:700px){.ov{align-items:center}.sheet{border-radius:18px;max-height:88dvh}.sheet.full{height:88dvh}}
+.sheet-h{display:flex;align-items:center;padding:6px 6px 6px 16px;border-bottom:1px solid var(--bd);flex:none}
+.sheet-h h2{flex:1;margin:0;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet-b{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px}
+.sheet-f{display:flex;gap:8px;padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);border-top:1px solid var(--bd);flex:none}
+.sheet-f .btn{flex:1}
+.conf{margin:4px 0 0;font-size:16px}
+
+/* Formulários */
+.fld{display:block;margin-bottom:12px;font-size:14px;color:var(--mut);font-weight:600}
+.fld input,.fld select,.fld textarea{display:block;width:100%;margin-top:4px;padding:11px 12px;border:1px solid var(--bd);border-radius:10px;font-size:16px;font-family:inherit;font-weight:400;background:var(--card);color:var(--tx);-webkit-appearance:none;appearance:none}
+.fld textarea{min-height:80px;resize:vertical}
+.fld .ajuda{display:block;font-weight:400;font-size:12px;margin-top:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.foto-campo{margin-bottom:14px}
+.foto-prev{height:200px;border-radius:12px;background:var(--gray-bg);display:grid;place-items:center;overflow:hidden;color:var(--mut);font-size:14px}
+.foto-prev img{width:100%;height:100%;object-fit:contain;background:#000}
+.foto-btns{display:flex;gap:8px;margin-top:8px}
+.foto-btns .btn{flex:1}
+.foto-btns input{display:none}
+
+/* Detalhe */
+.hero{height:240px;border-radius:14px;background:var(--gray-bg);overflow:hidden;display:grid;place-items:center;font-size:56px;margin-bottom:14px;position:relative}
+.hero img{width:100%;height:100%;object-fit:cover}
+.hero .etq{position:absolute;left:10px;bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.titulo{font-size:20px;font-weight:700;margin:0 0 2px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.kv div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px;min-width:0}
+.kv small{display:block;color:var(--mut);font-size:12px}
+.kv span{display:block;overflow:hidden;text-overflow:ellipsis}
+.link{color:var(--pri);background:none;border:0;padding:0;font:inherit;font-weight:600;text-align:left}
+.notas{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;white-space:pre-wrap;font-size:15px}
+.alerta{border-radius:12px;padding:12px;margin:12px 0;display:flex;flex-direction:column;gap:10px}
+.alerta.warn{background:var(--warn-bg);color:var(--warn)}
+.alerta.bad{background:var(--bad-bg);color:var(--bad)}
+.acoes{display:flex;gap:8px;margin:12px 0}
+.acoes .btn{flex:1}
+.sec{margin-top:20px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sec-h h3{margin:0;font-size:16px}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:14px}
+.hist .q{font-weight:600}
+.hist .d{color:var(--mut);font-size:13px}
+.hist li{display:flex;gap:8px;align-items:center}
+.hist .hx{flex:1;min-width:0}
+.hist .hed{flex:none;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:8px;width:40px;height:40px;font-size:16px}
+.alerta .lin{display:flex;gap:8px}
+.kv3{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:0}
+.kv .big{font-size:22px;font-weight:700}
+.alerta .lin .btn{flex:1}
+.rodape{display:flex;gap:8px;margin-top:24px}
+.rodape .btn{flex:1}
+
+.viewer{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.viewer .icon{position:absolute;top:calc(env(safe-area-inset-top) + 8px);right:8px;color:#fff;background:rgba(255,255,255,.15)}
+
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translate(-50%,20px);background:#111;color:#fff;padding:10px 16px;border-radius:10px;z-index:200;opacity:0;transition:.2s;pointer-events:none;max-width:90vw;font-size:14px;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:#b91c1c}
+
+/* Impressão de etiquetas */
+#print{display:none}
+@media print{
+  @page{margin:12mm}
+  body{background:#fff!important;color:#000!important;overflow:visible!important;min-height:0}
+  body > *:not(#print){display:none!important}
+  #print{display:block;font-family:-apple-system,Arial,sans-serif;color:#000}
+  #print h2{font-size:18pt;margin:0 0 4mm}
+  #print table{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:6mm}
+  #print th,#print td{border:1px solid #999;padding:2mm;text-align:left;vertical-align:top}
+  #print .pb{page-break-before:always}
+  #print .tags{display:flex;flex-wrap:wrap;gap:3mm}
+  #print .tag{width:55mm;height:25mm;border:1px dashed #555;border-radius:3mm;padding:2mm 3mm;display:flex;flex-direction:column;justify-content:center;page-break-inside:avoid;overflow:hidden}
+  #print .tag b{font-family:Menlo,Consolas,monospace;font-size:20pt;line-height:1.1}
+  #print .tag span{font-size:8.5pt;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #print .tag small{font-size:7pt;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #print *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #print .r-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1.5pt solid #333;padding-bottom:3mm}
+  #print .r-org{font-size:8.5pt;color:#555}
+  #print .r-tit{font-size:17pt;font-weight:700;margin-top:1mm}
+  #print .r-data{font-size:8.5pt;color:#555;text-align:right}
+  #print{width:100%}
+  #print .r-eq{display:grid;grid-template-columns:40mm minmax(0,1fr) 38mm;gap:4mm;margin-top:5mm;page-break-inside:avoid}
+  #print .r-ph{background:#eee;border:0.5pt solid #ccc;border-radius:2mm;overflow:hidden;height:28mm;display:flex;align-items:center;justify-content:center;color:#999;font-size:8pt;position:relative}
+  #print .r-ph img{width:100%;height:100%;object-fit:cover;display:block}
+  #print .r-nome{font-size:13pt;font-weight:700}
+  #print .r-lb{font-size:7.5pt;color:#666;display:block;margin-top:1.5mm}
+  #print .r-v{font-size:9.5pt}
+  #print .r-sig{font-family:Menlo,Consolas,monospace;font-weight:700;font-size:9pt;background:#fff3c4;border:0.5pt solid #d4b13c;border-radius:1mm;padding:0 1.5mm;margin-left:1.5mm}
+  #print .r-map{position:relative;overflow:hidden}
+  #print .r-map .tiles{position:absolute;display:grid;grid-template-columns:repeat(3,256px);width:768px}
+  #print .r-map .tiles img{width:256px;height:256px;object-fit:fill}
+  #print .r-pin{position:absolute;left:50%;top:50%;width:4mm;height:4mm;margin:-2mm 0 0 -2mm;border-radius:50%;background:#d32f2f;border:0.8mm solid #fff;box-shadow:0 0 0 0.3mm #d32f2f}
+  #print .r-res{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3mm;margin:4mm 0}
+  #print .r-res div{background:#f2f2f2;border-radius:1.5mm;padding:2mm 3mm}
+  #print .r-res small{display:block;font-size:7.5pt;color:#666}
+  #print .r-res b{font-size:14pt}
+  #print .r-h{font-size:11pt;font-weight:700;margin:0 0 3mm}
+  #print .r-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm 4mm}
+  #print .r-k{display:flex;gap:2.5mm;align-items:stretch;border:0.5pt solid #bbb;border-radius:1.5mm;overflow:hidden;page-break-inside:avoid;break-inside:avoid;min-height:20mm}
+  #print .r-k .r-ph{width:26mm;height:auto;min-height:20mm;flex:none;border:0;border-radius:0;font-size:6.5pt;text-align:center}
+  #print .r-cod{font-family:Menlo,Consolas,monospace;font-weight:800;font-size:10pt;background:#fff3c4;border:0.6pt solid #d4b13c;border-radius:1mm;padding:0 1.5mm;color:#000;white-space:nowrap}
+  #print .r-kb{padding:1.5mm 2mm 1.5mm 0;min-width:0;flex:1;display:flex;flex-direction:column;justify-content:center}
+  #print .r-kt{display:flex;justify-content:space-between;gap:2mm;align-items:center}
+  #print .r-kp{font-size:9pt;font-weight:700;margin-top:0.8mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #print .r-kt b{font-size:10pt}
+  #print .r-st{font-size:7.5pt;font-weight:700;border-radius:5mm;padding:0.3mm 2mm;white-space:nowrap}
+  #print .s-ok{background:#dcfce7;color:#166534}
+  #print .s-out{background:#fef3c7;color:#92400e}
+  #print .s-bad{background:#fee2e2;color:#991b1b}
+  #print .s-off{background:#e5e7eb;color:#4b5563}
+  #print .r-km{font-size:7.5pt;color:#555;margin-top:0.5mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #print .r-kw{font-size:7.5pt;color:#92400e;margin-top:0.5mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #print .r-foot{display:flex;justify-content:space-between;border-top:0.5pt solid #999;margin-top:5mm;padding-top:1.5mm;font-size:7.5pt;color:#666}
+  #print .r-ent{border:0.6pt solid #999;border-radius:2mm;margin-bottom:5mm;page-break-inside:avoid;break-inside:avoid;overflow:hidden}
+  #print .r-enth{display:flex;justify-content:space-between;align-items:baseline;gap:3mm;background:#f2f2f2;padding:2mm 3mm;border-bottom:0.5pt solid #ccc}
+  #print .r-enth b{font-size:11.5pt}
+  #print .r-enth span{font-size:8.5pt;color:#555;white-space:nowrap}
+  #print .r-tab{width:100%;table-layout:fixed;border-collapse:collapse;margin:0;font-size:8.5pt}
+  #print .r-tab th{background:none;border:0;border-bottom:0.5pt solid #ccc;padding:1.2mm 2mm;font-size:7.5pt;color:#666;text-align:left;font-weight:600}
+  #print .r-tab td{border:0;border-bottom:0.3pt solid #e2e2e2;padding:1.2mm 2mm;vertical-align:middle}
+  #print .r-tab tr:last-child td{border-bottom:0}
+  #print .r-mini{width:13mm;height:10mm;border-radius:1mm;overflow:hidden;background:#eee}
+  #print .r-mini img{width:100%;height:100%;object-fit:cover;display:block}
+  #print .r-c{text-align:center}
+  #print .r-ass{display:grid;grid-template-columns:1fr 1fr;gap:8mm;padding:6mm 3mm 2.5mm;font-size:7.5pt;color:#555}
+  #print .r-ass div{border-top:0.5pt solid #333;padding-top:1mm}
+  #print .r-vazio{padding:8mm;text-align:center;color:#666;border:0.5pt dashed #aaa;border-radius:2mm}
+}
+</style>
+</head>
+<body>
+
+<div class="login" id="login">
+  <form class="login-box" id="loginForm" autocomplete="off">
+    <div class="ico">🔑</div>
+    <h2>Chaveiro</h2>
+    <p>Introduz o código de entrada</p>
+    <input id="loginCod" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••">
+    <button class="btn primary" type="submit" id="loginBtn">Entrar</button>
+    <div class="login-erro" id="loginErro"></div>
+  </form>
+</div>
+
+<header class="top">
+  <div class="top-in">
+    <div class="bar">
+      <h1>🔑 Chaveiro</h1>
+      <button class="icon" id="btnSair" aria-label="Acesso">🔒</button>
+      <button class="icon" id="btnRefresh" aria-label="Atualizar">⟳</button>
+      <button class="btn primary sm" id="btnNovo">+ Novo</button>
+    </div>
+    <div class="seg" id="seg">
+      <button data-v="equip" class="on">Equipamentos</button>
+      <button data-v="chaves">Chaves</button>
+      <button data-v="mapa">Mapa</button>
+    </div>
+    <input id="q" type="search" placeholder="Pesquisar equipamento, código, porta…" autocomplete="off">
+    <div class="chips" id="filtros"></div>
+  </div>
+</header>
+
+<main>
+  <div id="lista" class="lista"><div class="vazio">A carregar…</div></div>
+  <div id="mapaWrap" hidden>
+    <div id="mapa"></div>
+    <div class="meta" id="mapaInfo" style="margin-top:8px"></div>
+  </div>
+</main>
+
+<div id="toast"></div>
+<div id="print"></div>
+
+<script>
+const SB_URL = 'https://xfrmilhlnaabnhuattbx.supabase.co';
+const SB_KEY = 'sb_publishable_AYFF3URfUI3XppiLdBa1jw_IKxSHUVW';
+const BUCKET = 'chaveiro';
+const sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+
+const ESTADOS = { disponivel: 'Disponível', emprestada: 'Emprestada', perdida: 'Perdida', inativa: 'Inativa' };
+const FILTROS = [['todas', 'Todas'], ['disponivel', 'No armário'], ['emprestada', 'Entregues'], ['atraso', 'Em atraso'], ['outras', 'Perdidas / inativas']];
+
+let equipamentos = [];
+let chaves = [];
+let vista = 'equip';
+let filtro = 'todas';
+let termo = '';
+
+/* ---------- utilitários ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => (s ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const fotoURL = p => p ? `${SB_URL}/storage/v1/object/public/${BUCKET}/${p.split('/').map(encodeURIComponent).join('/')}` : '';
+function hojeISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+const fmtDia = d => d ? d.substring(0, 10).split('-').reverse().join('/') : '';
+const fmtDH = ts => ts ? new Date(ts).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const ordenar = (a, b) => (a || '').toString().localeCompare((b || '').toString(), 'pt', { numeric: true, sensitivity: 'base' });
+const movsAbertos = c => (c.movimentos || []).filter(m => !m.data_devolucao).sort((a, b) => (a.data_saida || '').localeCompare(b.data_saida || ''));
+const qtd = m => Math.max(1, Number(m.quantidade) || 1);
+const totalC = c => Math.max(0, Number(c.copias ?? 1) || 0);
+const foraC = c => movsAbertos(c).reduce((s, m) => s + qtd(m), 0);
+const armarioC = c => Math.max(0, totalC(c) - foraC(c));
+const atrasado = m => !!(m && !m.data_devolucao && m.data_prevista && m.data_prevista < hojeISO());
+const emAtraso = c => movsAbertos(c).some(atrasado);
+const ativa = c => c.estado !== 'perdida' && c.estado !== 'inativa';
+const pl = (n, s, p) => n + ' ' + (n === 1 ? s : p);
+const equipDe = c => equipamentos.find(e => e.id === c.equipamento_id) || {};
+const chavesDe = e => chaves.filter(c => c.equipamento_id === e.id).sort((a, b) => ordenar(a.codigo, b.codigo));
+
+let toastT;
+function toast(msg, erro = false) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'show' + (erro ? ' err' : '');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { t.className = ''; }, erro ? 4500 : 2200);
+}
+function msgErro(e) {
+  const txt = ((e && (e.message || '')) + ' ' + (e && e.details || '')).toLowerCase();
+  if (e && e.code === '23505') {
+    if (txt.includes('sigla')) return 'Já existe um equipamento com essa sigla.';
+    return 'Já existe uma chave com esse código.';
+  }
+  return 'Erro: ' + ((e && e.message) || e);
+}
+async function comBotao(btn, fn) {
+  const txt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'A guardar…';
+  try { await fn(); }
+  catch (e) { console.error(e); toast(msgErro(e), true); }
+  finally { if (btn.isConnected) { btn.disabled = false; btn.textContent = txt; } }
+}
+
+/* ---------- folhas / modais ---------- */
+const pilha = [];
+function abrirFolha({ titulo, corpo = '', rodape = '', cls = '' }) {
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+  ov.innerHTML = `<div class="sheet ${cls}" role="dialog" aria-modal="true">
+      <div class="sheet-h"><h2>${esc(titulo)}</h2><button class="icon x" aria-label="Fechar">✕</button></div>
+      <div class="sheet-b">${corpo}</div>
+      ${rodape ? `<div class="sheet-f">${rodape}</div>` : ''}
+    </div>`;
+  document.body.appendChild(ov);
+  document.body.classList.add('lock');
+  requestAnimationFrame(() => ov.classList.add('show'));
+  const f = { el: ov, b: ov.querySelector('.sheet-b'), f: ov.querySelector('.sheet-f'), onClose: null, refresh: null };
+  f.close = () => fecharFolha(f);
+  f.titulo = t => { ov.querySelector('h2').textContent = t; };
+  ov.querySelector('.x').onclick = f.close;
+  ov.addEventListener('click', e => { if (e.target === ov) f.close(); });
+  pilha.push(f);
+  return f;
+}
+function fecharFolha(f) {
+  const i = pilha.indexOf(f);
+  if (i < 0) return;
+  pilha.splice(i, 1);
+  f.el.classList.remove('show');
+  setTimeout(() => f.el.remove(), 200);
+  if (!pilha.length) document.body.classList.remove('lock');
+  if (f.onClose) f.onClose();
+}
+function confirmar(msg, ok = 'Confirmar', perigo = false) {
+  return new Promise(res => {
+    const f = abrirFolha({
+      titulo: 'Confirmar', cls: 'small',
+      corpo: `<p class="conf">${esc(msg)}</p>`,
+      rodape: `<button class="btn ghost" data-a="n">Cancelar</button><button class="btn ${perigo ? 'danger' : 'primary'}" data-a="s">${esc(ok)}</button>`
+    });
+    let feito = false;
+    f.onClose = () => { if (!feito) res(false); };
+    f.f.onclick = e => {
+      const b = e.target.closest('[data-a]');
+      if (!b) return;
+      feito = true; res(b.dataset.a === 's'); f.close();
+    };
+  });
+}
+function verFoto(src) {
+  if (!src) return;
+  const v = document.createElement('div');
+  v.className = 'viewer';
+  v.innerHTML = `<img src="${esc(src)}" alt=""><button class="icon" aria-label="Fechar">✕</button>`;
+  v.onclick = () => { v.remove(); if (!pilha.length) document.body.classList.remove('lock'); };
+  document.body.classList.add('lock');
+  document.body.appendChild(v);
+}
+
+/* ---------- fotos ---------- */
+async function comprimir(file, max = 1600, q = 0.82) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const r = Math.min(1, max / Math.max(w, h));
+    w = Math.round(w * r); h = Math.round(h * r);
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(img, 0, 0, w, h);
+    return await new Promise(res => cv.toBlob(b => res(b || file), 'image/jpeg', q));
+  } catch (e) {
+    return file;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+async function apagarFotos(paths) {
+  const p = paths.filter(Boolean);
+  if (!p.length) return;
+  try { await sb.storage.from(BUCKET).remove(p); } catch (e) { console.warn(e); }
+}
+function campoFoto(atual, rotulo) {
+  return `<div class="foto-campo">
+      <div class="fld" style="margin-bottom:4px">${esc(rotulo)}</div>
+      <div class="foto-prev">${atual ? `<img src="${esc(fotoURL(atual))}" alt="">` : '<span>Sem foto</span>'}</div>
+      <div class="foto-btns">
+        <label class="btn">📷 ${atual ? 'Trocar foto' : 'Tirar / escolher foto'}<input type="file" accept="image/*" class="inp-foto"></label>
+        ${atual ? '<button type="button" class="btn ghost rm-foto">Remover</button>' : ''}
+      </div>
+    </div>`;
+}
+function ligarCampoFoto(root) {
+  const st = { file: null, remover: false };
+  const inp = root.querySelector('.inp-foto');
+  const prev = root.querySelector('.foto-prev');
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    st.file = f; st.remover = false;
+    prev.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`;
+  };
+  const rm = root.querySelector('.rm-foto');
+  if (rm) rm.onclick = () => {
+    st.file = null; st.remover = true; inp.value = '';
+    prev.innerHTML = '<span>Sem foto</span>';
+    rm.remove();
+  };
+  return st;
+}
+async function aplicarFoto(tabela, pasta, id, atual, st) {
+  if (st.file) {
+    const blob = await comprimir(st.file);
+    const path = `${pasta}/${id}-${Date.now()}.jpg`;
+    const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' });
+    if (up.error) throw up.error;
+    const { error } = await sb.from(tabela).update({ foto_path: path }).eq('id', id);
+    if (error) throw error;
+    if (atual) apagarFotos([atual]);
+  } else if (st.remover && atual) {
+    const { error } = await sb.from(tabela).update({ foto_path: null }).eq('id', id);
+    if (error) throw error;
+    apagarFotos([atual]);
+  }
+}
+
+/* ---------- mapas ---------- */
+const CENTRO = [41.5136, -8.0016]; // Cabeceiras de Basto
+const temCoords = e => e && e.latitude != null && e.longitude != null;
+function camadas(map) {
+  const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+  const osm = L.tileLayer(ESRI + 'World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri, HERE, OpenStreetMap' });
+  const sat = L.layerGroup([
+    L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
+    L.tileLayer(ESRI + 'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+  ]);
+  osm.addTo(map);
+  L.control.layers({ 'Mapa': osm, 'Satélite': sat }, null, { position: 'topright' }).addTo(map);
+}
+const linkMapa = e => `https://www.google.com/maps/search/?api=1&query=${e.latitude},${e.longitude}`;
+const linkRota = e => `https://www.google.com/maps/dir/?api=1&destination=${e.latitude},${e.longitude}`;
+
+function campoMapa() {
+  return `<div class="fld" style="margin-bottom:0">Localização no mapa</div>
+    <div class="mini-map fm-map"></div>
+    <div class="meta fm-coord" style="margin:6px 0"></div>
+    <div class="foto-btns" style="margin-bottom:14px">
+      <button type="button" class="btn fm-gps">📍 A minha localização</button>
+      <button type="button" class="btn ghost fm-limpar">Limpar</button>
+    </div>`;
+}
+function ligarCampoMapa(root, lat, lng) {
+  const st = { lat: lat ?? null, lng: lng ?? null, map: null };
+  const coord = root.querySelector('.fm-coord');
+  const map = L.map(root.querySelector('.fm-map')).setView(st.lat != null ? [st.lat, st.lng] : CENTRO, st.lat != null ? 17 : 13);
+  camadas(map);
+  st.map = map;
+  let mk = null;
+  const semTxt = 'Toca no mapa para marcar o local, ou usa a tua localização.';
+  function marcar(la, ln, centrar) {
+    st.lat = +la.toFixed(6); st.lng = +ln.toFixed(6);
+    if (!mk) {
+      mk = L.marker([st.lat, st.lng], { draggable: true }).addTo(map);
+      mk.on('dragend', () => { const p = mk.getLatLng(); marcar(p.lat, p.lng, false); });
+    } else mk.setLatLng([st.lat, st.lng]);
+    if (centrar) map.setView([st.lat, st.lng], 17);
+    coord.textContent = `📍 ${st.lat}, ${st.lng} — podes arrastar o marcador para acertar.`;
+  }
+  if (st.lat != null) marcar(st.lat, st.lng, false); else coord.textContent = semTxt;
+  map.on('click', ev => marcar(ev.latlng.lat, ev.latlng.lng, false));
+
+  const bGps = root.querySelector('.fm-gps');
+  bGps.onclick = () => {
+    if (!navigator.geolocation) { toast('Este dispositivo não permite obter a localização.', true); return; }
+    const txt = bGps.textContent;
+    bGps.disabled = true; bGps.textContent = 'A localizar…';
+    navigator.geolocation.getCurrentPosition(
+      p => { marcar(p.coords.latitude, p.coords.longitude, true); bGps.disabled = false; bGps.textContent = txt; },
+      err => { toast('Não foi possível obter a localização (' + err.message + ').', true); bGps.disabled = false; bGps.textContent = txt; },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+  root.querySelector('.fm-limpar').onclick = () => {
+    if (mk) { map.removeLayer(mk); mk = null; }
+    st.lat = null; st.lng = null;
+    coord.textContent = semTxt;
+  };
+  setTimeout(() => map.invalidateSize(), 260);
+  return st;
+}
+
+let mapaGeral = null, camadaGeral = null;
+function renderMapa() {
+  $('#lista').hidden = true;
+  $('#mapaWrap').hidden = false;
+  if (!mapaGeral) {
+    mapaGeral = L.map('mapa').setView(CENTRO, 12);
+    camadas(mapaGeral);
+    camadaGeral = L.layerGroup().addTo(mapaGeral);
+    mapaGeral.on('popupopen', ev => {
+      const b = ev.popup.getElement().querySelector('[data-abrir]');
+      if (b) b.onclick = () => abrirEquip(Number(b.dataset.abrir));
+    });
+  }
+  setTimeout(() => mapaGeral.invalidateSize(), 60);
+  camadaGeral.clearLayers();
+  const eqs = equipamentos.filter(e => temCoords(e) && equipPassa(e));
+  eqs.forEach(e => {
+    const n = chavesDe(e).length;
+    L.marker([e.latitude, e.longitude]).addTo(camadaGeral).bindPopup(
+      `<b>${esc(e.nome)}</b><br>${esc(e.sigla)} · ${n} ${n === 1 ? 'chave' : 'chaves'}<br>
+       <button class="btn sm primary" data-abrir="${e.id}" style="margin-top:6px">Abrir</button>
+       <a class="btn sm" href="${linkRota(e)}" target="_blank" rel="noopener" style="margin-top:6px;color:inherit">🧭 Ir</a>`);
+  });
+  if (eqs.length) mapaGeral.fitBounds(L.latLngBounds(eqs.map(e => [e.latitude, e.longitude])), { padding: [40, 40], maxZoom: 16 });
+  const sem = equipamentos.filter(e => !temCoords(e));
+  $('#mapaInfo').textContent = sem.length ? `Sem localização: ${sem.map(e => e.nome).join(', ')}.` : '';
+}
+
+/* ---------- dados ---------- */
+async function carregar() {
+  const [rE, rC] = await Promise.all([
+    sb.from('equipamentos').select('*'),
+    sb.from('chaves').select('*, movimentos(*)')
+  ]);
+  const error = rE.error || rC.error;
+  if (error) {
+    console.error(error);
+    toast('Erro a carregar: ' + error.message, true);
+    if (!equipamentos.length) $('#lista').innerHTML = `<div class="vazio">Não foi possível carregar os dados.<br>${esc(error.message)}</div>`;
+    return;
+  }
+  equipamentos = (rE.data || []).sort((a, b) => ordenar(a.nome, b.nome));
+  chaves = (rC.data || []).sort((a, b) => ordenar(a.codigo, b.codigo));
+  render();
+  pilha.forEach(f => { if (f.refresh) f.refresh(); });
+}
+
+/* ---------- lista principal ---------- */
+function passaFiltro(c, f = filtro) {
+  switch (f) {
+    case 'disponivel': return ativa(c) && armarioC(c) > 0;
+    case 'emprestada': return foraC(c) > 0;
+    case 'atraso': return emAtraso(c);
+    case 'outras': return c.estado === 'perdida' || c.estado === 'inativa';
+    default: return true;
+  }
+}
+function contem(campos) {
+  if (!termo) return true;
+  const txt = campos.map(norm).join(' | ');
+  return norm(termo).split(/\s+/).filter(Boolean).every(t => txt.includes(t));
+}
+const chavePassa = c => {
+  const e = equipDe(c);
+  return contem([c.codigo, c.porta, c.localizacao, c.gancho, c.notas, e.nome, e.sigla, ...movsAbertos(c).flatMap(m => [m.pessoa, m.servico])]);
+};
+const equipPassa = e => contem([e.nome, e.sigla, e.morada, e.notas]);
+
+function badgeDe(c) {
+  if (emAtraso(c)) return '<span class="badge b-atraso">Em atraso</span>';
+  if (!ativa(c)) return `<span class="badge b-${esc(c.estado)}">${esc(ESTADOS[c.estado] || c.estado)}</span>`;
+  const t = totalC(c), a = armarioC(c), f = foraC(c);
+  if (f > 0 && a === 0) return '<span class="badge b-emprestada">Todas entregues</span>';
+  if (f > 0) return `<span class="badge b-emprestada">${a}/${t} no armário</span>`;
+  if (t === 0) return '<span class="badge b-inativa">Sem chaves</span>';
+  return `<span class="badge b-disponivel">${t > 1 ? t + ' no armário' : 'No armário'}</span>`;
+}
+function cardChave(c, mostrarEquip = true) {
+  const ms = movsAbertos(c), e = equipDe(c);
+  const meta = [mostrarEquip ? e.nome : '', c.localizacao, c.gancho ? 'Gancho ' + c.gancho : '', pl(totalC(c), 'chave', 'chaves')].filter(Boolean).map(esc).join(' · ');
+  return `<button class="card" data-chave="${c.id}">
+      <div class="thumb">${c.foto_path ? `<img src="${esc(fotoURL(c.foto_path))}" loading="lazy" alt="">` : '🚪'}</div>
+      <div class="info">
+        <div><span class="etq">${esc(c.codigo)}</span></div>
+        <div class="desc">${esc(c.porta)}</div>
+        ${meta ? `<div class="meta">${meta}</div>` : ''}
+        ${ms.map(m => `<div class="meta warn">${qtd(m)}× com ${esc(m.pessoa)}${m.servico ? ' (' + esc(m.servico) + ')' : ''} desde ${fmtDia(m.data_saida)}${m.data_prevista ? ' · até ' + fmtDia(m.data_prevista) : ''}</div>`).join('')}
+      </div>
+      ${badgeDe(c)}
+    </button>`;
+}
+function cardEquip(e) {
+  const cs = chavesDe(e);
+  const tot = cs.reduce((s, c) => s + totalC(c), 0);
+  const fora = cs.reduce((s, c) => s + foraC(c), 0);
+  return `<button class="card" data-equip="${e.id}">
+      <div class="thumb">${e.foto_path ? `<img src="${esc(fotoURL(e.foto_path))}" loading="lazy" alt="">` : '🏢'}</div>
+      <div class="info">
+        <div class="nome">${esc(e.nome)}</div>
+        <div class="meta"><span class="etq">${esc(e.sigla)}</span>${e.morada ? ' · ' + esc(e.morada) : ''}</div>
+        <div class="meta">${pl(cs.length, 'porta', 'portas')} · ${pl(tot, 'chave', 'chaves')}${fora ? ` · <span style="color:var(--warn)">${fora} entregue${fora > 1 ? 's' : ''}</span>` : ''}</div>
+      </div>
+      <span class="meta">›</span>
+    </button>`;
+}
+function render() {
+  document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.v === vista));
+  if (vista === 'mapa') { $('#filtros').innerHTML = ''; renderMapa(); return; }
+  $('#mapaWrap').hidden = true;
+  const box = $('#lista');
+  box.hidden = false;
+
+  if (vista === 'chaves') {
+    $('#filtros').innerHTML = FILTROS.map(([k, l]) =>
+      `<button class="chip ${k === filtro ? 'on' : ''}" data-f="${k}">${l} (${chaves.filter(c => passaFiltro(c, k)).length})</button>`).join('');
+    const lst = chaves.filter(c => passaFiltro(c) && chavePassa(c));
+    box.innerHTML = lst.length ? lst.map(c => cardChave(c)).join('')
+      : `<div class="vazio">${chaves.length ? 'Nenhuma chave encontrada.' : 'Ainda não há chaves.<br>Cria primeiro um equipamento e depois adiciona-lhe as chaves.'}</div>`;
+    return;
+  }
+
+  $('#filtros').innerHTML = '';
+  if (!equipamentos.length) {
+    box.innerHTML = '<div class="vazio">Ainda não há equipamentos.<br>Carrega em “+ Novo” para criar o primeiro (ex.: Pavilhão Municipal).</div>';
+    return;
+  }
+  const eqs = equipamentos.filter(equipPassa);
+  let html = eqs.map(cardEquip).join('');
+  if (termo) {
+    const cs = chaves.filter(chavePassa);
+    if (cs.length) html += `<div class="grupo">Chaves (${cs.length})</div>` + cs.map(c => cardChave(c)).join('');
+    if (!eqs.length && !cs.length) html = '<div class="vazio">Nada encontrado.</div>';
+  }
+  box.innerHTML = html;
+}
+
+/* ---------- folha: equipamento ---------- */
+function abrirEquip(id) {
+  const f = abrirFolha({ titulo: 'Equipamento', cls: 'full' });
+  f.equipId = id;
+  f.map = null;
+  f.onClose = () => { if (f.map) { f.map.remove(); f.map = null; } };
+  f.refresh = () => {
+    const e = equipamentos.find(x => x.id === id);
+    if (!e) { f.close(); return; }
+    const cs = chavesDe(e);
+    f.titulo(e.nome);
+    if (f.map) { f.map.remove(); f.map = null; }
+    f.b.innerHTML = `
+      <div class="hero">${e.foto_path ? `<img src="${esc(fotoURL(e.foto_path))}" data-act="ver" data-src="${esc(fotoURL(e.foto_path))}" alt="">` : '🏢'}</div>
+      <p class="titulo">${esc(e.nome)}</p>
+      <div class="meta"><span class="etq">${esc(e.sigla)}</span>${e.morada ? ' · ' + esc(e.morada) : ''}</div>
+      ${e.notas ? `<div class="notas" style="margin-top:12px">${esc(e.notas)}</div>` : ''}
+
+      <div class="sec">
+        <div class="sec-h"><h3>Localização</h3></div>
+        ${temCoords(e) ? `
+          <div class="mini-map eq-map"></div>
+          <div class="foto-btns">
+            <a class="btn" href="${linkMapa(e)}" target="_blank" rel="noopener">🗺️ Abrir no mapa</a>
+            <a class="btn" href="${linkRota(e)}" target="_blank" rel="noopener">🧭 Como chegar</a>
+          </div>`
+          : '<div class="meta">Sem localização. <button class="link" data-act="editar">Marcar no mapa</button></div>'}
+      </div>
+
+      <div class="sec">
+        <div class="sec-h">
+          <h3>Chaves (${cs.length})</h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            ${cs.length ? '<button class="btn sm" data-act="relatorio">📄 Relatório</button><button class="btn sm" data-act="rel-ent">👥 Entidades</button><button class="btn sm" data-act="etiquetas">🏷️ Etiquetas</button>' : ''}
+            <button class="btn sm primary" data-act="nova-chave">+ Chave</button>
+          </div>
+        </div>
+        <div class="lista">${cs.length ? cs.map(c => cardChave(c, false)).join('') : '<div class="meta">Ainda não há chaves. Adiciona uma por cada porta, com a foto da porta.</div>'}</div>
+      </div>
+
+      <div class="rodape">
+        <button class="btn" data-act="editar">✎ Editar</button>
+        <button class="btn danger" data-act="eliminar">Eliminar</button>
+      </div>`;
+    const el = f.b.querySelector('.eq-map');
+    if (el) {
+      f.map = L.map(el, { scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false }).setView([e.latitude, e.longitude], 16);
+      camadas(f.map);
+      L.marker([e.latitude, e.longitude]).addTo(f.map);
+      setTimeout(() => { if (f.map) f.map.invalidateSize(); }, 260);
+    }
+  };
+  f.b.addEventListener('click', ev => {
+    const t = ev.target.closest('[data-act],[data-chave]');
+    if (!t) return;
+    const e = equipamentos.find(x => x.id === id);
+    if (!e) return;
+    if (t.dataset.chave) { abrirChave(Number(t.dataset.chave)); return; }
+    switch (t.dataset.act) {
+      case 'ver': verFoto(t.dataset.src); break;
+      case 'nova-chave': formChave(null, e.id); break;
+      case 'etiquetas': imprimirEtiquetas(e); break;
+      case 'relatorio': relatorioEquip(e); break;
+      case 'rel-ent': escolherRelEnt(e); break;
+      case 'editar': formEquip(e); break;
+      case 'eliminar': eliminarEquip(e, f); break;
+    }
+  });
+  f.refresh();
+}
+
+/* ---------- folha: chave ---------- */
+function abrirChave(id) {
+  const f = abrirFolha({ titulo: 'Chave', cls: 'full' });
+  f.refresh = () => {
+    const c = chaves.find(x => x.id === id);
+    if (!c) { f.close(); return; }
+    const e = equipDe(c), ms = movsAbertos(c);
+    const t = totalC(c), fo = foraC(c), ar = armarioC(c);
+    const hist = [...(c.movimentos || [])].sort((a, b) => (b.data_saida || '').localeCompare(a.data_saida || '')).slice(0, 30);
+    f.titulo(c.codigo);
+    f.b.innerHTML = `
+      <div class="hero">${c.foto_path ? `<img src="${esc(fotoURL(c.foto_path))}" data-act="ver" data-src="${esc(fotoURL(c.foto_path))}" alt="">` : '🚪'}
+        <span class="etq big">${esc(c.codigo)}</span></div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <p class="titulo">${esc(c.porta)}</p>
+          <button class="link" data-act="equip">🏢 ${esc(e.nome || '—')}</button>
+        </div>
+        ${badgeDe(c)}
+      </div>
+      <div class="kv">
+        <div><small>Localização</small><span>${esc(c.localizacao) || '—'}</span></div>
+        <div><small>Gancho no armário</small><span>${esc(c.gancho) || '—'}</span></div>
+      </div>
+      <div class="kv kv3">
+        <div><small>Total</small><span class="big">${t}</span></div>
+        <div><small>No armário</small><span class="big" style="color:var(--ok)">${ar}</span></div>
+        <div><small>Entregues</small><span class="big" style="color:${fo ? 'var(--warn)' : 'inherit'}">${fo}</span></div>
+      </div>
+      ${!ativa(c) ? `<div class="meta">Estado: ${esc(ESTADOS[c.estado])}</div>` : ''}
+      ${c.notas ? `<div class="notas">${esc(c.notas)}</div>` : ''}
+
+      ${ms.map(m => `<div class="alerta ${atrasado(m) ? 'bad' : 'warn'}">
+          <div><strong>${pl(qtd(m), 'chave entregue', 'chaves entregues')} a ${esc(m.pessoa)}</strong>${m.servico ? ' (' + esc(m.servico) + ')' : ''}<br>
+          Saída: ${fmtDH(m.data_saida)}${m.data_prevista ? '<br>Devolução prevista: ' + fmtDia(m.data_prevista) + (atrasado(m) ? ' — em atraso' : '') : ''}
+          ${m.notas ? '<br>' + esc(m.notas) : ''}</div>
+          <div class="lin">
+            <button class="btn" data-act="mov" data-id="${m.id}">✎ Editar</button>
+            <button class="btn primary" data-act="devolver" data-id="${m.id}">↩︎ Devolução</button>
+          </div>
+        </div>`).join('')}
+      ${ativa(c) && ar > 0 ? `<div class="acoes"><button class="btn" data-act="saida">↗︎ Entregar chave${ar > 1 ? 's' : ''} (${ar} no armário)</button></div>` : ''}
+
+      <div class="sec">
+        <div class="sec-h"><h3>Histórico de entregas</h3></div>
+        ${hist.length ? `<ul class="hist">${hist.map(h => `
+          <li><div class="hx"><div class="q">${esc(h.pessoa)}${h.servico ? ' · ' + esc(h.servico) : ''}</div>
+          <div class="d">Saída ${fmtDH(h.data_saida)} → ${h.data_devolucao ? 'devolvida ' + fmtDH(h.data_devolucao) : '<strong>em curso</strong>'}</div>
+          ${h.data_prevista ? `<div class="d">Prevista: ${fmtDia(h.data_prevista)}</div>` : ''}
+          ${h.notas ? `<div class="d">${esc(h.notas)}</div>` : ''}</div>
+          <button class="hed" data-act="mov" data-id="${h.id}" aria-label="Editar entrega">✎</button></li>`).join('')}</ul>` : '<div class="meta">Sem entregas registadas.</div>'}
+      </div>
+
+      <div class="rodape">
+        <button class="btn" data-act="editar">✎ Editar</button>
+        <button class="btn danger" data-act="eliminar">Eliminar</button>
+      </div>`;
+  };
+  f.b.addEventListener('click', ev => {
+    const t = ev.target.closest('[data-act]');
+    if (!t) return;
+    const c = chaves.find(x => x.id === id);
+    if (!c) return;
+    switch (t.dataset.act) {
+      case 'ver': verFoto(t.dataset.src); break;
+      case 'equip': {
+        const aberta = pilha.find(p => p.equipId === c.equipamento_id);
+        if (aberta) f.close(); else { abrirEquip(c.equipamento_id); pilha[pilha.length - 1].equipId = c.equipamento_id; }
+        break;
+      }
+      case 'editar': formChave(c); break;
+      case 'eliminar': eliminarChave(c, f); break;
+      case 'saida': formSaida(c); break;
+      case 'devolver': devolver(c, (c.movimentos || []).find(x => String(x.id) === t.dataset.id)); break;
+      case 'mov': formMov(c, (c.movimentos || []).find(x => String(x.id) === t.dataset.id)); break;
+    }
+  });
+  f.refresh();
+}
+
+/* ---------- formulário: equipamento ---------- */
+function sugerirSigla(nome) {
+  const pal = norm(nome).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(p => p.length > 2 && !['municipal', 'municipais', 'escola'].includes(p));
+  let s = (pal[0] || norm(nome).replace(/[^a-z0-9]/g, '')).slice(0, 3).toUpperCase();
+  if (!s) return '';
+  let base = s, n = 2;
+  while (equipamentos.some(e => e.sigla.toUpperCase() === s)) s = base + n++;
+  return s;
+}
+function formEquip(e) {
+  const novo = !e;
+  e = e || {};
+  const f = abrirFolha({
+    titulo: novo ? 'Novo equipamento' : 'Editar equipamento',
+    corpo: `
+      <label class="fld">Nome *<input id="e_nome" value="${esc(e.nome)}" placeholder="Ex.: Pavilhão Municipal"></label>
+      <label class="fld">Sigla *<input id="e_sigla" value="${esc(e.sigla)}" autocapitalize="characters" autocomplete="off" maxlength="8" placeholder="Ex.: PAV">
+        <span class="ajuda">Prefixo dos códigos das chaves (PAV-01, PAV-02…)</span></label>
+      <label class="fld">Morada / localidade<input id="e_morada" value="${esc(e.morada)}"></label>
+      ${campoMapa()}
+      ${campoFoto(e.foto_path, 'Foto do equipamento (opcional)')}
+      <label class="fld">Notas<textarea id="e_notas">${esc(e.notas)}</textarea></label>`,
+    rodape: `<button class="btn ghost" data-a="cancel">Cancelar</button><button class="btn primary" data-a="save">Guardar</button>`
+  });
+  const foto = ligarCampoFoto(f.b);
+  const geo = ligarCampoMapa(f.b, e.latitude, e.longitude);
+  f.onClose = () => geo.map.remove();
+  const v = s => f.b.querySelector(s).value.trim();
+  const inSigla = f.b.querySelector('#e_sigla');
+  let siglaManual = !novo;
+  inSigla.addEventListener('input', () => { siglaManual = true; });
+  f.b.querySelector('#e_nome').addEventListener('input', ev => { if (!siglaManual) inSigla.value = sugerirSigla(ev.target.value); });
+  f.f.querySelector('[data-a="cancel"]').onclick = f.close;
+  const bSave = f.f.querySelector('[data-a="save"]');
+  bSave.onclick = () => comBotao(bSave, async () => {
+    const dados = { nome: v('#e_nome'), sigla: v('#e_sigla').toUpperCase().replace(/\s+/g, ''), morada: v('#e_morada') || null, notas: v('#e_notas') || null, latitude: geo.lat, longitude: geo.lng };
+    if (!dados.nome || !dados.sigla) { toast('Preenche o nome e a sigla.', true); return; }
+    let id = e.id;
+    if (novo) {
+      const { data, error } = await sb.from('equipamentos').insert(dados).select().single();
+      if (error) throw error;
+      id = data.id;
+    } else {
+      const { error } = await sb.from('equipamentos').update(dados).eq('id', id);
+      if (error) throw error;
+    }
+    await aplicarFoto('equipamentos', 'equipamentos', id, e.foto_path, foto);
+    f.close();
+    toast(novo ? 'Equipamento criado' : 'Alterações guardadas');
+    await carregar();
+    if (novo) { abrirEquip(id); pilha[pilha.length - 1].equipId = id; }
+  });
+}
+
+/* ---------- formulário: chave ---------- */
+function sugerirCodigo(equipId) {
+  const e = equipamentos.find(x => x.id === equipId);
+  if (!e) return '';
+  const pre = e.sigla.toUpperCase() + '-';
+  const nums = chaves.filter(c => c.codigo.toUpperCase().startsWith(pre))
+    .map(c => parseInt(c.codigo.slice(pre.length), 10)).filter(n => !isNaN(n));
+  const n = (nums.length ? Math.max(...nums) : 0) + 1;
+  return pre + String(n).padStart(2, '0');
+}
+function formChave(c, equipId) {
+  const novo = !c;
+  c = c || { estado: 'disponivel', copias: 1, equipamento_id: equipId };
+  if (!equipamentos.length) { toast('Cria primeiro um equipamento.', true); return; }
+  const eqSel = c.equipamento_id || equipamentos[0].id;
+  const f = abrirFolha({
+    titulo: novo ? 'Nova chave' : 'Editar chave',
+    corpo: `
+      <label class="fld">Equipamento *<select id="c_equip">${equipamentos.map(e => `<option value="${e.id}" ${e.id === eqSel ? 'selected' : ''}>${esc(e.nome)} (${esc(e.sigla)})</option>`).join('')}</select></label>
+      ${campoFoto(c.foto_path, 'Foto da porta')}
+      <label class="fld">Código da etiqueta *<input id="c_codigo" value="${esc(novo ? sugerirCodigo(eqSel) : c.codigo)}" autocapitalize="characters" autocomplete="off">
+        <span class="ajuda">É este código que fica na chave e no armário.</span></label>
+      <label class="fld">Porta / o que abre *<input id="c_porta" value="${esc(c.porta)}" placeholder="Ex.: Arrecadação material desportivo"></label>
+      <label class="fld">Localização<input id="c_local" value="${esc(c.localizacao)}" placeholder="Ex.: Piso 0, junto aos balneários"></label>
+      <div class="row2">
+        <label class="fld">Gancho no armário<input id="c_gancho" value="${esc(c.gancho)}" placeholder="Ex.: A3" autocomplete="off"></label>
+        <label class="fld">Nº de chaves<input id="c_copias" type="number" inputmode="numeric" min="0" value="${c.copias ?? 1}"></label>
+      </div>
+      <label class="fld">Estado<select id="c_estado">${Object.entries(ESTADOS).map(([k, l]) => `<option value="${k}" ${k === c.estado ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="fld">Notas<textarea id="c_notas">${esc(c.notas)}</textarea></label>`,
+    rodape: `<button class="btn ghost" data-a="cancel">Cancelar</button><button class="btn primary" data-a="save">Guardar</button>`
+  });
+  const foto = ligarCampoFoto(f.b);
+  const v = s => f.b.querySelector(s).value.trim();
+  const inCod = f.b.querySelector('#c_codigo');
+  let codManual = !novo;
+  inCod.addEventListener('input', () => { codManual = true; });
+  f.b.querySelector('#c_equip').addEventListener('change', ev => { if (!codManual) inCod.value = sugerirCodigo(Number(ev.target.value)); });
+  f.f.querySelector('[data-a="cancel"]').onclick = f.close;
+  const bSave = f.f.querySelector('[data-a="save"]');
+  bSave.onclick = () => comBotao(bSave, async () => {
+    const dados = {
+      equipamento_id: Number(v('#c_equip')),
+      codigo: v('#c_codigo').toUpperCase(),
+      porta: v('#c_porta'),
+      localizacao: v('#c_local') || null,
+      gancho: v('#c_gancho') || null,
+      copias: Math.max(0, parseInt(v('#c_copias'), 10) || 0),
+      estado: v('#c_estado'),
+      notas: v('#c_notas') || null
+    };
+    if (!dados.codigo || !dados.porta) { toast('Preenche o código e a porta.', true); return; }
+    if (!novo && dados.copias < foraC(c)) { toast(`Há ${foraC(c)} entregues; o nº de chaves não pode ser menor.`, true); return; }
+    let id = c.id;
+    if (novo) {
+      const { data, error } = await sb.from('chaves').insert(dados).select().single();
+      if (error) throw error;
+      id = data.id;
+    } else {
+      const { error } = await sb.from('chaves').update(dados).eq('id', id);
+      if (error) throw error;
+    }
+    await aplicarFoto('chaves', 'chaves', id, c.foto_path, foto);
+    f.close();
+    toast(novo ? `Chave ${dados.codigo} criada` : 'Alterações guardadas');
+    await carregar();
+  });
+}
+
+/* ---------- entregar / devolver ---------- */
+function formSaida(c) {
+  const todos = chaves.flatMap(x => x.movimentos || []);
+  const pessoas = [...new Set(todos.map(m => m.pessoa).filter(Boolean))].sort(ordenar);
+  const servicos = [...new Set(todos.map(m => m.servico).filter(Boolean))].sort(ordenar);
+  const f = abrirFolha({
+    titulo: 'Entregar chave',
+    corpo: `
+      <div style="margin-bottom:12px"><span class="etq">${esc(c.codigo)}</span> <span class="meta">${esc(c.porta)} — ${esc(equipDe(c).nome || '')}</span></div>
+      <label class="fld">Nº de chaves entregues *<input id="m_qtd" type="number" inputmode="numeric" min="1" max="${armarioC(c)}" value="1">
+        <span class="ajuda">${pl(armarioC(c), 'chave disponível', 'chaves disponíveis')} no armário (de ${totalC(c)}).</span></label>
+      <label class="fld">Entregue a *<input id="m_pessoa" list="dl_pess" autocomplete="off"></label>
+      <datalist id="dl_pess">${pessoas.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <label class="fld">Serviço / entidade<input id="m_servico" list="dl_serv" autocomplete="off"></label>
+      <datalist id="dl_serv">${servicos.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <label class="fld">Devolução prevista<input id="m_prev" type="date" min="${hojeISO()}"></label>
+      <label class="fld">Notas<textarea id="m_notas"></textarea></label>`,
+    rodape: `<button class="btn ghost" data-a="cancel">Cancelar</button><button class="btn primary" data-a="save">Registar entrega</button>`
+  });
+  const v = s => f.b.querySelector(s).value.trim();
+  f.f.querySelector('[data-a="cancel"]').onclick = f.close;
+  const bSave = f.f.querySelector('[data-a="save"]');
+  bSave.onclick = () => comBotao(bSave, async () => {
+    const dados = { chave_id: c.id, quantidade: parseInt(v('#m_qtd'), 10) || 0, pessoa: v('#m_pessoa'), servico: v('#m_servico') || null, data_prevista: v('#m_prev') || null, notas: v('#m_notas') || null };
+    if (dados.quantidade < 1) { toast('Indica o nº de chaves entregues.', true); return; }
+    if (dados.quantidade > armarioC(c)) { toast(`Só há ${armarioC(c)} no armário.`, true); return; }
+    if (!dados.pessoa) { toast('Indica a quem é entregue a chave.', true); return; }
+    const { error } = await sb.from('movimentos').insert(dados);
+    if (error) throw error;
+    const r = await sb.from('chaves').update({ estado: 'emprestada' }).eq('id', c.id);
+    if (r.error) throw r.error;
+    f.close(); toast('Entrega registada'); await carregar();
+  });
+}
+/* ---------- editar / apagar entrega ---------- */
+function paraLocal(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), z = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+const deLocal = v => v ? new Date(v).toISOString() : null;
+async function acertarEstado(chaveId) {
+  const { data, error } = await sb.from('movimentos').select('id').eq('chave_id', chaveId).is('data_devolucao', null).limit(1);
+  if (error) throw error;
+  const c = chaves.find(x => x.id === chaveId);
+  const aberto = data && data.length > 0;
+  let novo = null;
+  if (aberto && c && c.estado !== 'emprestada') novo = 'emprestada';
+  if (!aberto && c && c.estado === 'emprestada') novo = 'disponivel';
+  if (novo) {
+    const r = await sb.from('chaves').update({ estado: novo }).eq('id', chaveId);
+    if (r.error) throw r.error;
+  }
+}
+function formMov(c, m) {
+  if (!m) return;
+  const todos = chaves.flatMap(x => x.movimentos || []);
+  const pessoas = [...new Set(todos.map(x => x.pessoa).filter(Boolean))].sort(ordenar);
+  const servicos = [...new Set(todos.map(x => x.servico).filter(Boolean))].sort(ordenar);
+  const f = abrirFolha({
+    titulo: 'Editar entrega',
+    corpo: `
+      <div style="margin-bottom:12px"><span class="etq">${esc(c.codigo)}</span> <span class="meta">${esc(c.porta)}</span></div>
+      <label class="fld">Nº de chaves entregues *<input id="e_qtd" type="number" inputmode="numeric" min="1" value="${qtd(m)}"></label>
+      <label class="fld">Entregue a *<input id="e_pessoa" list="dl_pess2" value="${esc(m.pessoa)}" autocomplete="off"></label>
+      <datalist id="dl_pess2">${pessoas.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <label class="fld">Serviço / entidade<input id="e_servico" list="dl_serv2" value="${esc(m.servico)}" autocomplete="off"></label>
+      <datalist id="dl_serv2">${servicos.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+      <label class="fld">Data de saída *<input id="e_saida" type="datetime-local" value="${paraLocal(m.data_saida)}"></label>
+      <label class="fld">Devolução prevista<input id="e_prev" type="date" value="${esc((m.data_prevista || '').substring(0, 10))}"></label>
+      <label class="fld">Data de devolução<input id="e_dev" type="datetime-local" value="${paraLocal(m.data_devolucao)}">
+        <span class="ajuda">Deixa vazio se a chave ainda não foi devolvida.</span></label>
+      <label class="fld">Notas<textarea id="e_notas">${esc(m.notas)}</textarea></label>`,
+    rodape: `<button class="btn danger" data-a="del">Apagar</button><button class="btn primary" data-a="save">Guardar</button>`
+  });
+  const v = s => f.b.querySelector(s).value.trim();
+  f.f.querySelector('[data-a="del"]').onclick = async () => {
+    if (!(await confirmar(`Apagar este registo de entrega a ${m.pessoa}? Não pode ser anulado.`, 'Apagar', true))) return;
+    try {
+      const { error } = await sb.from('movimentos').delete().eq('id', m.id);
+      if (error) throw error;
+      await acertarEstado(c.id);
+      f.close(); toast('Entrega apagada'); await carregar();
+    } catch (e) { toast(msgErro(e), true); }
+  };
+  const bSave = f.f.querySelector('[data-a="save"]');
+  bSave.onclick = () => comBotao(bSave, async () => {
+    const dados = {
+      quantidade: parseInt(v('#e_qtd'), 10) || 0,
+      pessoa: v('#e_pessoa'), servico: v('#e_servico') || null,
+      data_saida: deLocal(v('#e_saida')), data_prevista: v('#e_prev') || null,
+      data_devolucao: deLocal(v('#e_dev')), notas: v('#e_notas') || null
+    };
+    if (dados.quantidade < 1) { toast('Indica o nº de chaves entregues.', true); return; }
+    if (!dados.data_devolucao) {
+      const outras = movsAbertos(c).filter(x => x.id !== m.id).reduce((s, x) => s + qtd(x), 0);
+      const max = totalC(c) - outras;
+      if (dados.quantidade > max) { toast(`No máximo ${max} nesta entrega (total ${totalC(c)}).`, true); return; }
+    }
+    if (!dados.pessoa) { toast('Indica a quem foi entregue a chave.', true); return; }
+    if (!dados.data_saida) { toast('Indica a data de saída.', true); return; }
+    if (dados.data_devolucao && dados.data_devolucao < dados.data_saida) { toast('A devolução não pode ser antes da saída.', true); return; }
+    const { error } = await sb.from('movimentos').update(dados).eq('id', m.id);
+    if (error) throw error;
+    await acertarEstado(c.id);
+    f.close(); toast('Entrega atualizada'); await carregar();
+  });
+}
+
+async function devolver(c, m) {
+  if (!m) return;
+  if (!(await confirmar(`Registar a devolução de ${pl(qtd(m), 'chave', 'chaves')} ${c.codigo} por ${m.pessoa}?`, 'Devolver'))) return;
+  try {
+    const { error } = await sb.from('movimentos').update({ data_devolucao: new Date().toISOString() }).eq('id', m.id);
+    if (error) throw error;
+    await acertarEstado(c.id);
+    toast('Devolução registada');
+    await carregar();
+  } catch (e) { toast(msgErro(e), true); }
+}
+
+/* ---------- eliminar ---------- */
+async function eliminarChave(c, folha) {
+  if (!(await confirmar(`Eliminar a chave ${c.codigo} (${c.porta})? O histórico de entregas também é apagado.`, 'Eliminar', true))) return;
+  const { error } = await sb.from('chaves').delete().eq('id', c.id);
+  if (error) { toast(msgErro(error), true); return; }
+  apagarFotos([c.foto_path]);
+  folha.close();
+  toast('Chave eliminada');
+  await carregar();
+}
+async function eliminarEquip(e, folha) {
+  const cs = chavesDe(e);
+  if (!(await confirmar(`Eliminar ${e.nome}${cs.length ? ` e as ${cs.length} chave(s) associadas` : ''}? Esta ação não pode ser anulada.`, 'Eliminar', true))) return;
+  const { error } = await sb.from('equipamentos').delete().eq('id', e.id);
+  if (error) { toast(msgErro(error), true); return; }
+  apagarFotos([e.foto_path, ...cs.map(c => c.foto_path)]);
+  folha.close();
+  toast('Equipamento eliminado');
+  await carregar();
+}
+
+/* ---------- etiquetas ---------- */
+function imprimirEtiquetas(e) {
+  const cs = chavesDe(e);
+  $('#print').innerHTML = `
+    <h2>${esc(e.nome)} (${esc(e.sigla)}) — índice de chaves</h2>
+    <table>
+      <thead><tr><th>Código</th><th>Porta</th><th>Localização</th><th>Gancho</th><th>Chaves</th></tr></thead>
+      <tbody>${cs.map(c => `<tr><td><b>${esc(c.codigo)}</b></td><td>${esc(c.porta)}</td><td>${esc(c.localizacao)}</td><td>${esc(c.gancho)}</td><td>${totalC(c)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="pb"></div>
+    <h2>Etiquetas — ${esc(e.nome)}</h2>
+    <div class="tags">${cs.map(c => `<div class="tag"><b>${esc(c.codigo)}</b><span>${esc(c.porta)}</span><small>${esc(e.nome)}${c.gancho ? ' · ' + esc(c.gancho) : ''}</small></div>`).join('')}</div>`;
+  imprimir();
+}
+
+/* ---------- relatório por entidades ---------- */
+function gruposEntidades(e, todas) {
+  const grupos = new Map();
+  chavesDe(e).forEach(c => (c.movimentos || []).forEach(m => {
+    if (!todas && m.data_devolucao) return;
+    const nome = (m.servico || m.pessoa || '—').trim();
+    const k = norm(nome);
+    if (!grupos.has(k)) grupos.set(k, { k, nome, pessoas: new Set(), linhas: [] });
+    const g = grupos.get(k);
+    if (m.servico && m.pessoa) g.pessoas.add(m.pessoa);
+    g.linhas.push({ c, m });
+  }));
+  return grupos;
+}
+function escolherRelEnt(e) {
+  const f = abrirFolha({ titulo: 'Relatório por entidades', cls: 'small' });
+  let todas = false;
+  const desenhar = () => {
+    const lista = [...gruposEntidades(e, todas).values()].sort((a, b) => ordenar(a.nome, b.nome));
+    const posse = g => g.linhas.filter(l => !l.m.data_devolucao).reduce((s, l) => s + qtd(l.m), 0);
+    f.b.innerHTML = `
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:15px">
+        <input type="checkbox" id="re_todas" ${todas ? 'checked' : ''} style="width:22px;height:22px">
+        Incluir entregas já devolvidas
+      </label>
+      ${lista.length ? `<div style="display:flex;flex-direction:column;gap:8px">
+        ${lista.length > 1 ? `<button class="btn primary" data-k="*">Todas as entidades (${lista.length})</button>` : ''}
+        ${lista.map(g => `<button class="btn" data-k="${esc(g.k)}" style="justify-content:space-between;text-align:left">
+            <span>${esc(g.nome)}</span><span class="meta">${pl(posse(g), 'chave', 'chaves')}${todas ? ' · ' + pl(g.linhas.length, 'entrega', 'entregas') : ''}</span>
+          </button>`).join('')}
+      </div>` : `<div class="meta">${todas ? 'Ainda não há entregas registadas.' : 'Neste momento não há chaves entregues. Marca a opção acima para ver o histórico.'}</div>`}`;
+    f.b.querySelector('#re_todas').onchange = ev => { todas = ev.target.checked; desenhar(); };
+  };
+  f.b.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-k]');
+    if (!b) return;
+    f.close();
+    relatorioEntidades(e, todas, b.dataset.k === '*' ? null : b.dataset.k);
+  });
+  desenhar();
+}
+function relatorioEntidades(e, todas, soK) {
+  const cs = chavesDe(e);
+  const grupos = gruposEntidades(e, todas);
+  if (soK) [...grupos.keys()].forEach(k => { if (k !== soK) grupos.delete(k); });
+  const lista = [...grupos.values()].sort((a, b) => ordenar(a.nome, b.nome));
+  lista.forEach(g => g.linhas.sort((a, b) => ordenar(a.c.codigo, b.c.codigo) || (b.m.data_saida || '').localeCompare(a.m.data_saida || '')));
+  const emCurso = g => g.linhas.filter(l => !l.m.data_devolucao).reduce((s, l) => s + qtd(l.m), 0);
+  const totFora = lista.reduce((s, g) => s + emCurso(g), 0);
+  const totChaves = cs.reduce((s, c) => s + totalC(c), 0);
+  const hoje = fmtDia(hojeISO());
+  const estadoMov = m => m.data_devolucao ? `<span class="r-st s-off">Devolvida ${fmtDia(m.data_devolucao)}</span>`
+    : atrasado(m) ? '<span class="r-st s-bad">Em atraso</span>' : '<span class="r-st s-out">Em curso</span>';
+
+  $('#print').innerHTML = `
+    <div class="r-top">
+      <div>
+        <div class="r-org">Município de Cabeceiras de Basto · Divisão de Desenvolvimento Social</div>
+        <div class="r-tit">${soK && lista[0] ? 'Chaves entregues — ' + esc(lista[0].nome) : 'Chaves entregues por entidade'}</div>
+      </div>
+      <div class="r-data">Emitido em<br><b style="color:#000;font-size:10pt">${hoje}</b></div>
+    </div>
+    <div style="margin:4mm 0 1mm"><span class="r-nome">${esc(e.nome)}</span><span class="r-sig">${esc(e.sigla)}</span>
+      ${e.morada ? `<span class="r-v" style="color:#555;margin-left:2mm">${esc(e.morada)}</span>` : ''}</div>
+    ${soK ? `<div class="r-res">
+      <div><small>Chaves em posse</small><b>${totFora}</b></div>
+      <div><small>Portas</small><b>${new Set(lista.flatMap(g => g.linhas.filter(l => todas || !l.m.data_devolucao).map(l => l.c.id))).size}</b></div>
+      <div><small>Entregas</small><b>${lista.reduce((s, g) => s + g.linhas.length, 0)}</b></div>
+      <div><small>Em atraso</small><b>${lista.reduce((s, g) => s + g.linhas.filter(l => atrasado(l.m)).length, 0)}</b></div>
+    </div>` : `<div class="r-res">
+      <div><small>Entidades</small><b>${lista.length}</b></div>
+      <div><small>Total de chaves</small><b>${totChaves}</b></div>
+      <div><small>Entregues agora</small><b>${totFora}</b></div>
+      <div><small>No armário</small><b>${cs.reduce((s, c) => s + (ativa(c) ? armarioC(c) : 0), 0)}</b></div>
+    </div>`}
+    ${lista.length ? lista.map(g => `
+      <div class="r-ent">
+        <div class="r-enth"><b>${esc(g.nome)}</b><span>${g.pessoas.size ? 'Responsável: ' + [...g.pessoas].map(esc).join(', ') + ' · ' : ''}${pl(emCurso(g), 'chave em posse', 'chaves em posse')}</span></div>
+        <table class="r-tab">
+          <thead><tr><th style="width:16mm">Foto</th><th style="width:21mm">Código</th><th>Porta</th><th class="r-c" style="width:10mm">Qtd.</th><th style="width:19mm">Entregue</th><th style="width:19mm">Prevista</th><th style="width:33mm">Situação</th></tr></thead>
+          <tbody>${g.linhas.map(({ c, m }) => `<tr>
+            <td><div class="r-mini">${c.foto_path ? `<img src="${esc(fotoURL(c.foto_path))}" alt="">` : ''}</div></td>
+            <td><span class="r-cod" style="font-size:9pt">${esc(c.codigo)}</span></td>
+            <td>${esc(c.porta)}${c.localizacao ? `<br><span style="color:#666">${esc(c.localizacao)}</span>` : ''}${!m.servico || !m.pessoa ? '' : ''}</td>
+            <td class="r-c"><b>${qtd(m)}</b></td>
+            <td>${fmtDia(m.data_saida)}</td>
+            <td>${m.data_prevista ? fmtDia(m.data_prevista) : '—'}</td>
+            <td>${estadoMov(m)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+        ${emCurso(g) ? '<div class="r-ass"><div>Entregue por (Município)</div><div>Recebido por (entidade)</div></div>' : ''}
+      </div>`).join('') : `<div class="r-vazio">${todas ? 'Este equipamento ainda não tem entregas registadas.' : 'Neste momento não há chaves entregues deste equipamento.'}</div>`}
+    <div class="r-foot"><span>Chaveiro · ${esc(e.nome)} (${esc(e.sigla)}) · ${todas ? 'todas as entregas' : 'entregas em curso'}</span><span>${hoje}</span></div>`;
+  imprimir();
+}
+
+/* ---------- impressão / relatório ---------- */
+async function imprimir() {
+  const imgs = [...$('#print').querySelectorAll('img')];
+  if (imgs.length) toast('A preparar o relatório…');
+  await Promise.race([
+    Promise.all(imgs.map(i => i.complete ? null : new Promise(r => { i.onload = r; i.onerror = r; }))),
+    new Promise(r => setTimeout(r, 6000))
+  ]);
+  setTimeout(() => window.print(), 80);
+}
+function mapaEstatico(lat, lng, z = 17) {
+  const n = Math.pow(2, z);
+  const xt = (lng + 180) / 360 * n;
+  const rad = lat * Math.PI / 180;
+  const yt = (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n;
+  const tx = Math.floor(xt), ty = Math.floor(yt);
+  const px = (xt - tx) * 256, py = (yt - ty) * 256;
+  let tiles = '';
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++)
+      tiles += `<img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${ty + dy}/${tx + dx}" alt="">`;
+  return `<div class="r-ph r-map"><div class="tiles" style="left:calc(50% - ${Math.round(256 + px)}px);top:calc(50% - ${Math.round(256 + py)}px)">${tiles}</div><span class="r-pin"></span></div>`;
+}
+function estadoRel(c) {
+  if (emAtraso(c)) return '<span class="r-st s-bad">Em atraso</span>';
+  if (ativa(c)) {
+    const a = armarioC(c), f = foraC(c), t = totalC(c);
+    if (f > 0 && a === 0) return '<span class="r-st s-out">Todas entregues</span>';
+    if (f > 0) return `<span class="r-st s-out">${a}/${t} no armário</span>`;
+    return '<span class="r-st s-ok">No armário</span>';
+  }
+  if (c.estado === 'perdida') return '<span class="r-st s-bad">Perdida</span>';
+  return '<span class="r-st s-off">Inativa</span>';
+}
+function relatorioEquip(e) {
+  const f = abrirFolha({
+    titulo: 'Relatório do equipamento', cls: 'small',
+    corpo: `<label style="display:flex;align-items:center;gap:10px;font-size:15px;margin-bottom:6px">
+        <input type="checkbox" id="rq_quem" checked style="width:22px;height:22px">
+        Mostrar a quem estão entregues
+      </label>
+      <div class="meta">Ex.: “1× Presidente (Junta de Freguesia) desde 23/10/2026”. Desmarca para um relatório só com as chaves e as quantidades.</div>`,
+    rodape: `<button class="btn ghost" data-a="cancel">Cancelar</button><button class="btn primary" data-a="ok">Gerar relatório</button>`
+  });
+  f.f.querySelector('[data-a="cancel"]').onclick = f.close;
+  f.f.querySelector('[data-a="ok"]').onclick = () => {
+    const quem = f.b.querySelector('#rq_quem').checked;
+    f.close();
+    gerarRelEquip(e, quem);
+  };
+}
+function gerarRelEquip(e, mostrarQuem = true) {
+  const cs = chavesDe(e);
+  const total = cs.length;
+  const copias = cs.reduce((s, c) => s + totalC(c), 0);
+  const fora = cs.reduce((s, c) => s + foraC(c), 0);
+  const armario = cs.reduce((s, c) => s + (ativa(c) ? armarioC(c) : 0), 0);
+  const hoje = fmtDia(hojeISO());
+  $('#print').innerHTML = `
+    <div class="r-top">
+      <div>
+        <div class="r-org">Município de Cabeceiras de Basto · Divisão de Desenvolvimento Social</div>
+        <div class="r-tit">Relatório de chaves</div>
+      </div>
+      <div class="r-data">Emitido em<br><b style="color:#000;font-size:10pt">${hoje}</b></div>
+    </div>
+
+    <div class="r-eq">
+      <div class="r-ph">${e.foto_path ? `<img src="${esc(fotoURL(e.foto_path))}" alt="">` : 'Sem foto'}</div>
+      <div>
+        <div class="r-nome">${esc(e.nome)}<span class="r-sig">${esc(e.sigla)}</span></div>
+        ${e.morada ? `<span class="r-lb">Morada</span><span class="r-v">${esc(e.morada)}</span>` : ''}
+        ${temCoords(e) ? `<span class="r-lb">Coordenadas</span><span class="r-v">${e.latitude}, ${e.longitude}</span>` : ''}
+        ${e.notas ? `<span class="r-lb">Notas</span><span class="r-v">${esc(e.notas)}</span>` : ''}
+      </div>
+      ${temCoords(e) ? mapaEstatico(e.latitude, e.longitude) : '<div class="r-ph">Sem localização</div>'}
+    </div>
+
+    <div class="r-res">
+      <div><small>Portas</small><b>${total}</b></div>
+      <div><small>Total de chaves</small><b>${copias}</b></div>
+      <div><small>No armário</small><b>${armario}</b></div>
+      <div><small>Entregues</small><b>${fora}</b></div>
+    </div>
+
+    <div class="r-h">Chaves e portas</div>
+    <div class="r-grid">
+      ${cs.map(c => {
+        const ms = movsAbertos(c);
+        const meta = [c.localizacao, c.gancho ? 'Gancho ' + c.gancho : '', pl(totalC(c), 'chave', 'chaves')].filter(Boolean).map(esc).join(' · ');
+        return `<div class="r-k">
+          <div class="r-ph">${c.foto_path ? `<img src="${esc(fotoURL(c.foto_path))}" alt="">` : 'Sem foto'}</div>
+          <div class="r-kb">
+            <div class="r-kt"><span class="r-cod">${esc(c.codigo)}</span>${estadoRel(c)}</div>
+            <div class="r-kp">${esc(c.porta)}</div>
+            <div class="r-km">${meta}</div>
+            ${!mostrarQuem ? '' : ms.map(m => `<div class="r-kw">${qtd(m)}× ${esc(m.pessoa)}${m.servico ? ' (' + esc(m.servico) + ')' : ''} desde ${fmtDia(m.data_saida)}${m.data_prevista ? ' · prev. ' + fmtDia(m.data_prevista) : ''}</div>`).join('')}
+            ${c.notas ? `<div class="r-km">${esc(c.notas)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="r-foot"><span>Chaveiro · ${esc(e.nome)} (${esc(e.sigla)})</span><span>${total} ${total === 1 ? 'chave' : 'chaves'} · ${hoje}</span></div>`;
+  imprimir();
+}
+
+/* ---------- eventos ---------- */
+$('#lista').addEventListener('click', ev => {
+  const c = ev.target.closest('[data-chave]');
+  if (c) { abrirChave(Number(c.dataset.chave)); return; }
+  const e = ev.target.closest('[data-equip]');
+  if (e) { const id = Number(e.dataset.equip); abrirEquip(id); pilha[pilha.length - 1].equipId = id; }
+});
+$('#seg').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-v]');
+  if (!b) return;
+  vista = b.dataset.v; render();
+});
+$('#filtros').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-f]');
+  if (!b) return;
+  filtro = b.dataset.f; render();
+});
+$('#q').addEventListener('input', ev => { termo = ev.target.value; render(); });
+$('#btnNovo').onclick = () => {
+  if (vista === 'chaves' && equipamentos.length) formChave(null);
+  else formEquip(null);
+};
+$('#btnRefresh').onclick = async () => { await carregar(); toast('Atualizado'); };
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && entrou) carregar(); });
+
+/* ---------- código de entrada ---------- */
+const LS_COD = 'chaveiro_codigo';
+let entrou = false;
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+
+async function verificarCodigo(cod) {
+  const { data, error } = await sb.rpc('verificar_codigo', { p_codigo: cod });
+  if (error) throw error;
+  return data === true;
+}
+function entrar() {
+  entrou = true;
+  $('#login').hidden = true;
+  carregar();
+}
+function mostrarLogin(msg = '') {
+  entrou = false;
+  $('#login').hidden = false;
+  $('#loginErro').textContent = msg;
+  $('#loginCod').value = '';
+  setTimeout(() => $('#loginCod').focus(), 100);
+}
+$('#loginForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const cod = $('#loginCod').value.trim();
+  const btn = $('#loginBtn');
+  if (!cod) { $('#loginErro').textContent = 'Introduz o código.'; return; }
+  btn.disabled = true; btn.textContent = 'A verificar…';
+  $('#loginErro').textContent = '';
+  try {
+    if (await verificarCodigo(cod)) {
+      lsSet(LS_COD, cod);
+      entrar();
+    } else {
+      await new Promise(r => setTimeout(r, 700));
+      $('#loginErro').textContent = 'Código incorreto.';
+      $('#loginCod').value = '';
+      const box = $('#loginForm');
+      box.classList.remove('abana'); void box.offsetWidth; box.classList.add('abana');
+    }
+  } catch (e) {
+    console.error(e);
+    $('#loginErro').textContent = 'Não foi possível verificar (' + (e.message || e) + ').';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+});
+$('#btnSair').onclick = () => {
+  const f = abrirFolha({
+    titulo: 'Acesso', cls: 'small',
+    corpo: `<div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn" data-a="mudar">🔑 Alterar código de entrada</button>
+        <button class="btn danger" data-a="sair">Sair neste dispositivo</button>
+      </div>`
+  });
+  f.b.onclick = async ev => {
+    const b = ev.target.closest('[data-a]');
+    if (!b) return;
+    if (b.dataset.a === 'mudar') { f.close(); formCodigo(); return; }
+    f.close();
+    if (!(await confirmar('Sair da aplicação neste dispositivo?', 'Sair'))) return;
+    lsSet(LS_COD, null);
+    while (pilha.length) pilha[pilha.length - 1].close();
+    mostrarLogin();
+  };
+};
+function formCodigo() {
+  const f = abrirFolha({
+    titulo: 'Alterar código de entrada', cls: 'small',
+    corpo: `
+      <label class="fld">Código atual<input id="k_atual" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off"></label>
+      <label class="fld">Novo código<input id="k_novo" type="password" autocomplete="new-password" autocapitalize="off" autocorrect="off">
+        <span class="ajuda">Mínimo 4 caracteres (letras e/ou números).</span></label>
+      <label class="fld">Repetir novo código<input id="k_rep" type="password" autocomplete="new-password" autocapitalize="off" autocorrect="off"></label>
+      <div class="meta">Depois de alterar, os outros dispositivos vão pedir o novo código.</div>`,
+    rodape: `<button class="btn ghost" data-a="cancel">Cancelar</button><button class="btn primary" data-a="save">Alterar</button>`
+  });
+  const v = s => f.b.querySelector(s).value.trim();
+  f.f.querySelector('[data-a="cancel"]').onclick = f.close;
+  const bSave = f.f.querySelector('[data-a="save"]');
+  bSave.onclick = () => comBotao(bSave, async () => {
+    const atual = v('#k_atual'), novo = v('#k_novo'), rep = v('#k_rep');
+    if (!atual || !novo) { toast('Preenche o código atual e o novo.', true); return; }
+    if (novo.length < 4) { toast('O novo código tem de ter pelo menos 4 caracteres.', true); return; }
+    if (novo !== rep) { toast('Os dois novos códigos não coincidem.', true); return; }
+    if (novo === atual) { toast('O novo código é igual ao atual.', true); return; }
+    const { data, error } = await sb.rpc('alterar_codigo', { p_atual: atual, p_novo: novo });
+    if (error) throw error;
+    if (data !== true) { toast('O código atual está incorreto.', true); return; }
+    lsSet(LS_COD, novo);
+    f.close();
+    toast('Código de entrada alterado');
+  });
+}
+
+(async function iniciar() {
+  const guardado = lsGet(LS_COD);
+  if (!guardado) { mostrarLogin(); return; }
+  try {
+    if (await verificarCodigo(guardado)) entrar();
+    else { lsSet(LS_COD, null); mostrarLogin('O código de entrada foi alterado. Introduz o novo código.'); }
+  } catch (e) {
+    console.error(e);
+    mostrarLogin('Sem ligação. Tenta novamente.');
+  }
+})();
+</script>
+</body>
+</html>
